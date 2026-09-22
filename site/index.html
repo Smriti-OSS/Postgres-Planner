@@ -298,12 +298,16 @@ function appStatus(app){
 
 function ingest(issues){
   S.issues = issues.filter(i=>!i.pull_request);
+  // Match by label or by title prefix: templates can't apply labels that don't exist in the repo yet.
   const has = (i,l) => i.labels.some(x=>(x.name||x)===l);
-  const plat = S.issues.filter(i=>has(i,"platform")).sort((a,b)=>a.number-b.number)[0];
+  const isPlatform = i => has(i,"platform") || /^\[Platform\]/i.test(i.title);
+  const isApp = i => has(i,"migration") || /^\[Migration\]/i.test(i.title);
+  const plat = S.issues.filter(isPlatform).sort((a,b)=>a.number-b.number)[0];
   S.platform = plat ? {issue:plat, parsed:parseBody(plat.body)} : null;
-  S.apps = S.issues.filter(i=>has(i,"migration")).sort((a,b)=>a.number-b.number).map(i=>{
+  S.apps = S.issues.filter(i=>isApp(i) && !isPlatform(i)).sort((a,b)=>a.number-b.number).map(i=>{
     const parsed = parseBody(i.body);
-    const waveLabel = i.labels.map(l=>l.name||l).find(n=>WAVES[n]) || null;
+    const waveFromBody = Object.keys(WAVES).find(k=>WAVES[k].toLowerCase()===String(parsed.meta.wave||"").trim().toLowerCase());
+    const waveLabel = i.labels.map(l=>l.name||l).find(n=>WAVES[n]) || waveFromBody || null;
     const name = parsed.meta.application || i.title.replace(/^\[Migration\]\s*/i,"");
     const lead = i.assignees && i.assignees.length ? "@"+i.assignees.map(a=>a.login).join(", @") : (parsed.meta.lead && !/unassigned/i.test(parsed.meta.lead) ? parsed.meta.lead : "");
     return {issue:i, parsed, wave:waveLabel, name, lead};
@@ -463,7 +467,7 @@ function renderOverview(){
     <div class="gantt"><div class="gantt-inner"><div class="g-scale"><div></div><div class="ticks">${ticks}</div></div>${rows}</div></div>
   </section>
   <section class="section">
-    <div class="section-head"><h2>Applications</h2><span class="muted" style="font-size:12px">Wave comes from the issue's <code>wave:*</code> label; lead from its assignee. Change them on GitHub.</span></div>
+    <div class="section-head"><h2>Applications</h2><span class="muted" style="font-size:12px">Wave comes from the issue's <code>wave:*</code> label (or its <b>Wave:</b> line); lead from its assignee (or its <b>Lead:</b> line). Change them on GitHub.</span></div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Application</th><th>Wave</th><th>Lead</th><th>Status</th>${APP_COLS.map(c=>`<th>${esc(c)}</th>`).join("")}<th>Overall</th></tr></thead>
       <tbody>${body}</tbody>
