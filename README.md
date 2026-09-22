@@ -9,6 +9,16 @@ Progress is tracked in **GitHub Issues**:
 
 Each issue's checklist is a task list, so GitHub shows progress like "12 of 35 tasks" on the issue and in any Project board it is added to.
 
+## Live tracker
+
+**https://smriti-oss.github.io/Postgres-Planner/** is a dashboard built from the issues. It has the roadmap timeline, an app-by-section progress matrix, the platform baseline, the per-app checklists and the guidelines. It re-reads the issues every 90 seconds.
+
+- **Anyone can view it**; no sign-in needed.
+- **To tick items from the page**, choose *Turn on editing* and paste a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) scoped to this repository only, with **Issues: Read and write**. Each click updates the checklist in the issue body, so the page and the issue always agree. Status cycles To do → Done → N/A; N/A is written as a struck-through item.
+- The token stays in your browser (this tab only, unless you tick *Remember*) and is sent only to `api.github.com`.
+
+The page lives in [site/](site/) and is deployed by [pages.yml](.github/workflows/pages.yml) on every push to `site/`.
+
 ## What's in the repo
 
 | Path | Purpose |

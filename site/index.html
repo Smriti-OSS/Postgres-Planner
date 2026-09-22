@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloudant → Postgres Tracker</title>
+<meta name="description" content="Live roadmap and readiness checklists for moving monthly Cloudant databases to partitioned PostgreSQL, backed by GitHub Issues.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F4F6F8; --surface:#FFFFFF; --sunk:#EDF0F3; --ink:#18202B; --muted:#5B6675; --line:#DCE1E7;
+  --accent:#1E6A73; --accent-soft:#E1EFF0;
+  --wip:#9A600C; --wip-soft:#FBF0DC; --done:#2C7A4B; --done-soft:#E2F2E8; --na:#7D8796; --na-soft:#ECEEF1;
+  --crit:#B03A2E;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F141B; --surface:#161D26; --sunk:#121820; --ink:#E6EBF1; --muted:#93A0B0; --line:#27313D;
+    --accent:#62B6BF; --accent-soft:#16323A;
+    --wip:#E3A748; --wip-soft:#3A2C12; --done:#5EC28C; --done-soft:#14301F; --na:#707C8B; --na-soft:#1E252F;
+    --crit:#E57366; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F141B; --surface:#161D26; --sunk:#121820; --ink:#E6EBF1; --muted:#93A0B0; --line:#27313D;
+  --accent:#62B6BF; --accent-soft:#16323A;
+  --wip:#E3A748; --wip-soft:#3A2C12; --done:#5EC28C; --done-soft:#14301F; --na:#707C8B; --na-soft:#1E252F;
+  --crit:#E57366; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);margin:0}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+h1,h2,h3{font-family:var(--cond);text-wrap:balance;margin:0}
+h1{font-size:30px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:20px;font-weight:600}
+h3{font-size:15px;font-weight:600}
+code{font:12.5px var(--mono);background:var(--sunk);padding:1px 5px;border-radius:3px}
+.muted{color:var(--muted)}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+header.top{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+header.top p{margin:6px 0 0;max-width:62ch;color:var(--muted)}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.sync{font:12px var(--mono);color:var(--muted);display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--na)}
+.dot.live{background:var(--done)} .dot.off{background:var(--wip)}
+.acct{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;font-size:13px}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:24px;overflow-x:auto}
+nav.tabs button{appearance:none;border:0;background:none;color:var(--muted);font:500 14px var(--sans);padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+button,select,input{font:inherit;color:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:500;text-decoration:none;color:var(--ink);display:inline-block}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.small{padding:3px 10px;font-size:12px}
+.banner{border:1px solid var(--wip);background:var(--wip-soft);color:var(--ink);padding:10px 14px;border-radius:6px;margin-bottom:20px;font-size:13px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:28px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.stat b{display:block;font:600 26px/1.1 var(--cond);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+
+.section{margin-bottom:36px}
+.section-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.gantt{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.gantt-inner{min-width:720px}
+.g-scale,.g-row{display:grid;grid-template-columns:210px 1fr;gap:12px;align-items:center}
+.g-scale .ticks{position:relative;height:18px;font:11px var(--mono);color:var(--muted)}
+.g-scale .ticks span{position:absolute;transform:translateX(-50%)}
+.g-row{padding:8px 0;border-top:1px solid var(--line)}
+.g-label b{display:block;font:600 14px var(--cond)}
+.g-label small{color:var(--muted);font-size:12px}
+.g-track{position:relative;height:30px;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),var(--line) calc(10% - 1px) 10%)}
+.g-bar{position:absolute;top:3px;bottom:3px;border-radius:4px;background:var(--accent-soft);border:1px solid var(--accent);display:flex;align-items:center;gap:6px;padding:0 8px;overflow:hidden;font-size:12px;white-space:nowrap}
+.g-bar .fill{position:absolute;inset:0 auto 0 0;background:var(--accent);opacity:.22}
+.g-bar span{position:relative}
+.g-apps{grid-column:2;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;background:var(--surface);cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip i{font-style:normal;font:11px var(--mono);color:var(--muted)}
+
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td .name{font-weight:600;cursor:pointer;color:var(--ink);background:none;border:0;padding:0;text-align:left}
+td .name:hover{color:var(--accent);text-decoration:underline}
+.meter{display:flex;flex-direction:column;gap:3px;min-width:70px}
+.meter .bar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;display:flex}
+.meter .bar i{display:block;height:100%;background:var(--done)}
+.meter small{font:11px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font:500 11px var(--mono);padding:3px 8px;border-radius:4px;white-space:nowrap}
+.pill.s0{background:var(--na-soft);color:var(--muted)}
+.pill.s1{background:var(--wip-soft);color:var(--wip)}
+.pill.s2{background:var(--accent-soft);color:var(--accent)}
+.pill.s3{background:var(--done-soft);color:var(--done)}
+
+.cl-head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.cl-head .left{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.cl-head select{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 10px;font-weight:600;font-family:var(--cond);font-size:16px;max-width:100%}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:6px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:16px}
+.group-h{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.group-h .meter{width:160px}
+.item{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;padding:10px 16px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.st{appearance:none;border:1px solid var(--line);border-radius:4px;font:500 11px var(--mono);padding:3px 0;width:72px;text-align:center;cursor:pointer;background:var(--na-soft);color:var(--muted);margin-top:1px}
+.st[data-s="done"]{background:var(--done-soft);color:var(--done);border-color:transparent}
+.st[data-s="na"]{background:transparent;color:var(--na);border-style:dashed}
+.st[data-busy]{opacity:.5;cursor:progress}
+.st:disabled{cursor:default}
+.item[data-s="done"] .t,.item[data-s="na"] .t{color:var(--muted)}
+.item[data-s="na"] .t{text-decoration:line-through}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);align-items:center;margin:0 0 16px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.empty ol{text-align:left;display:inline-block;margin:10px 0 0}
+
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 24px 24px}
+.doc h1{font-size:24px;margin-top:16px}
+.doc h2{margin-top:28px;padding-top:12px;border-top:1px solid var(--line)}
+.doc h3{margin-top:20px}
+.doc p,.doc li{max-width:78ch}
+.doc pre{background:var(--sunk);border-radius:6px;padding:12px 14px;overflow-x:auto}
+.doc pre code{background:none;padding:0}
+.doc table{min-width:560px;margin:12px 0}
+.doc .tbl{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:22px;max-width:520px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(10,15,22,.45)}
+dialog p{color:var(--muted);font-size:13px;margin:8px 0}
+dialog input[type=password]{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;margin:8px 0;font-family:var(--mono);font-size:13px}
+dialog .row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+dialog .err{color:var(--crit);font-size:13px;min-height:1em}
+
+@media (max-width:640px){
+  .wrap{padding-inline:16px}
+  h1{font-size:24px}
+  .hdr-right{align-items:flex-start}
+  .item{grid-template-columns:1fr}
+  .item .st{justify-self:start;padding-inline:10px;width:auto}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">IBM Cloud · Cloudant → PostgreSQL</div>
+      <h1>Cloudant → Postgres Migration Tracker</h1>
+      <p>Live roadmap and readiness checklists for every application. Each checklist is a GitHub issue in <a id="repoLink" href="#"></a>. Ticks made here are saved to the issue.</p>
+    </div>
+    <div class="hdr-right">
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncText">Loading…</span> <button class="btn small" id="refreshBtn" type="button">Refresh</button></div>
+      <div class="acct" id="acct"></div>
+    </div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="overview">Roadmap &amp; progress</button>
+    <button role="tab" data-tab="platform">Platform baseline</button>
+    <button role="tab" data-tab="app">Per-app checklist</button>
+    <button role="tab" data-tab="guide">Guidelines</button>
+  </nav>
+  <main id="view"></main>
+</div>
+
+<dialog id="tokenDlg">
+  <form method="dialog" id="tokenForm">
+    <h2>Turn on editing</h2>
+    <p>To tick items from this page, paste a GitHub <b>fine-grained personal access token</b> with access to <b id="dlgRepo"></b> only, and the permission <b>Issues: Read and write</b>.</p>
+    <p><a id="patLink" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a token on GitHub ↗</a></p>
+    <label for="tokenInput" class="muted" style="font-size:12px">Token</label>
+    <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
+    <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="rememberTok"> Remember on this device</label>
+    <p>The token is sent only to api.github.com. It is kept in this browser tab only, or on this device if you tick <i>Remember</i>. Sign out removes it.</p>
+    <div class="err" id="tokenErr"></div>
+    <div class="row">
+      <button class="btn" value="cancel" formnovalidate type="submit">Cancel</button>
+      <button class="btn primary" id="tokenSave" type="button">Turn on editing</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- config ---------- */
+// On <owner>.github.io/<repo>/ the repo is derived from the URL; otherwise the fallback is used.
+const FALLBACK = {owner:"Smriti-OSS", repo:"Postgres-Planner"};
+const API = "https://api.github.com";
+const REPO = (()=>{
+  const h = location.hostname, seg = location.pathname.split("/").filter(Boolean)[0];
+  if(h.endsWith(".github.io") && seg) return {owner:h.split(".")[0], repo:seg};
+  return FALLBACK;
+})();
+const SLUG = REPO.owner + "/" + REPO.repo;
+const GH = "https://github.com/" + SLUG;
+const POLL_MS = 90000;
+
+const WAVES = {"wave:pilot":"Pilot","wave:1":"Wave 1","wave:2":"Wave 2","wave:3":"Wave 3"};
+const PHASES = [
+  {n:"0", t:"Discovery & inventory", d:"Catalog DBs, doc shapes, views, _changes consumers; score and put apps into waves", s:0, e:3},
+  {n:"1", t:"Platform foundation", d:"HA Postgres, PgBouncer, PITR, monitoring, partition automation, migration toolkit", s:2, e:8},
+  {n:"2", t:"Pilot", d:"One medium-complexity app end to end; update the runbook", s:8, e:14, wave:"wave:pilot"},
+  {n:"3", t:"Wave 1", d:"Low-risk, low-coupling apps", s:14, e:22, wave:"wave:1"},
+  {n:"4", t:"Wave 2", d:"Medium complexity, more consumers", s:20, e:28, wave:"wave:2"},
+  {n:"5", t:"Wave 3", d:"Critical / billing-path apps; full load test and DR drill first", s:26, e:34, wave:"wave:3"},
+  {n:"6", t:"Decommission & optimize", d:"Archive to COS, delete Cloudant, remove dual-write code (rolling)", s:22, e:40}
+];
+const WEEKS = 40;
+const APP_COLS = ["Discovery","Schema & data model","Migration execution","Cutover readiness","Cutover","Decommission"];
+const STATES = ["todo","done","na"];
+const LABEL = {todo:"To do", done:"Done", na:"N/A"};
+
+/* ---------- state ---------- */
+const S = {
+  issues: [], platform: null, apps: [],
+  tab:"overview", app:null, filter:"all",
+  token:null, login:null, canWrite:false,
+  etag:null, loaded:false, busy:new Set(), guideHtml:null
+};
+try{
+  const ui = JSON.parse(localStorage.getItem("pgmig.ui")||"{}");
+  Object.assign(S, {tab:ui.tab||S.tab, app:ui.app||null, filter:ui.filter||S.filter});
+}catch(e){}
+try{ S.token = sessionStorage.getItem("pgmig.tok") || localStorage.getItem("pgmig.tok"); }catch(e){}
+const saveUi = ()=>{ try{ localStorage.setItem("pgmig.ui", JSON.stringify({tab:S.tab, app:S.app, filter:S.filter})); }catch(e){} };
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inline = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+
+/* ---------- GitHub API ---------- */
+function headers(extra){
+  const h = {"Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28", ...extra};
+  if(S.token) h.Authorization = "Bearer " + S.token;
+  return h;
+}
+async function gh(path, opts={}){
+  const r = await fetch(API + path, {...opts, headers: headers(opts.headers)});
+  if(r.status===403 && r.headers.get("x-ratelimit-remaining")==="0"){
+    const reset = new Date(Number(r.headers.get("x-ratelimit-reset"))*1000);
+    throw Object.assign(new Error(`GitHub's API rate limit was reached. It resets at ${reset.toLocaleTimeString()}. Turning on editing raises the limit.`), {status:403});
+  }
+  return r;
+}
+
+/* ---------- parsing ---------- */
+const ITEM_RE = /^(\s*[-*]\s+)\[( |x|X)\]\s+(.*)$/;
+function parseBody(body){
+  const lines = String(body||"").split(/\r?\n/);
+  const sections = []; let cur = null; const meta = {};
+  lines.forEach((line, i)=>{
+    const h = line.match(/^#{2,4}\s+(.+?)\s*$/);
+    if(h){ cur = {title:h[1].trim(), items:[]}; sections.push(cur); return; }
+    const m = line.match(/^\*\*(Lead|Wave|Application):\*\*\s*(.*)$/);
+    if(m){ meta[m[1].toLowerCase()] = m[2].trim(); return; }
+    const it = line.match(ITEM_RE);
+    if(it){
+      if(!cur){ cur = {title:"Checklist", items:[]}; sections.push(cur); }
+      let text = it[3].trim(), state = it[2]===" " ? "todo" : "done";
+      const na = text.match(/^~~(.+)~~(.*)$/);
+      if(na){ state = "na"; text = (na[1] + na[2]).trim(); }
+      cur.items.push({text, state, line:i});
+    }
+  });
+  return {sections: sections.filter(s=>s.items.length), meta};
+}
+const norm = s => s.replace(/~~/g,"").replace(/\s+/g," ").trim().toLowerCase();
+
+function tally(sections){
+  let total=0, done=0, na=0;
+  for(const s of sections) for(const it of s.items){ total++; if(it.state==="done") done++; else if(it.state==="na") na++; }
+  const denom = total - na;
+  return {total, done, na, denom, pct: denom ? Math.round(done/denom*100) : (total?100:0)};
+}
+const sec = (app, title) => app.parsed.sections.filter(s=>s.title.toLowerCase()===title.toLowerCase());
+function appStatus(app){
+  const t = n => tally(sec(app,n));
+  if(app.issue.state==="closed") return [3,"Closed"];
+  const x = t("Decommission"); if(x.denom && x.pct===100) return [3,"Decommissioned"];
+  const c = t("Cutover"); if(c.denom && c.pct===100) return [2,"Cut over"];
+  if(tally(app.parsed.sections).done>0) return [1,"In progress"];
+  return [0,"Not started"];
+}
+
+function ingest(issues){
+  S.issues = issues.filter(i=>!i.pull_request);
+  const has = (i,l) => i.labels.some(x=>(x.name||x)===l);
+  const plat = S.issues.filter(i=>has(i,"platform")).sort((a,b)=>a.number-b.number)[0];
+  S.platform = plat ? {issue:plat, parsed:parseBody(plat.body)} : null;
+  S.apps = S.issues.filter(i=>has(i,"migration")).sort((a,b)=>a.number-b.number).map(i=>{
+    const parsed = parseBody(i.body);
+    const waveLabel = i.labels.map(l=>l.name||l).find(n=>WAVES[n]) || null;
+    const name = parsed.meta.application || i.title.replace(/^\[Migration\]\s*/i,"");
+    const lead = i.assignees && i.assignees.length ? "@"+i.assignees.map(a=>a.login).join(", @") : (parsed.meta.lead && !/unassigned/i.test(parsed.meta.lead) ? parsed.meta.lead : "");
+    return {issue:i, parsed, wave:waveLabel, name, lead};
+  });
+}
+
+async function load(force){
+  try{
+    const all = []; let page = 1, etag = null, notModified = false;
+    while(page <= 10){
+      const extra = (page===1 && S.etag && !force) ? {"If-None-Match":S.etag} : {};
+      const r = await gh(`/repos/${SLUG}/issues?state=all&per_page=100&page=${page}`, {headers:extra, cache:"no-store"});
+      if(r.status===304){ notModified = true; break; }
+      if(!r.ok) throw new Error(r.status===404 ? `Repository ${SLUG} wasn't found, or issues are turned off.` : `GitHub returned ${r.status}.`);
+      if(page===1) etag = r.headers.get("etag");
+      const batch = await r.json(); all.push(...batch);
+      if(batch.length < 100) break; page++;
+    }
+    if(!notModified){ S.etag = etag; ingest(all); }
+    S.loaded = true;
+    setSync("live", `Updated ${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`);
+    hideBanner();
+    if(!notModified) render();
+  }catch(err){
+    setSync("off", "Couldn't refresh");
+    showBanner(err.message || "Couldn't load issues from GitHub.");
+    if(!S.loaded) render();
+  }
+}
+
+/* ---------- auth ---------- */
+async function verifyToken(tok){
+  const r = await fetch(API + `/repos/${SLUG}`, {headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+tok}});
+  if(r.status===401) throw new Error("GitHub rejected that token. Check it was copied in full and hasn't expired.");
+  if(!r.ok) throw new Error(`The token can't see ${SLUG}. Give it access to this repository.`);
+  const u = await fetch(API + "/user", {headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+tok}});
+  const login = u.ok ? (await u.json()).login : null;
+  return {login};
+}
+async function initAuth(){
+  if(!S.token){ S.canWrite=false; S.login=null; renderAcct(); return; }
+  try{ const {login} = await verifyToken(S.token); S.login = login; S.canWrite = true; }
+  catch(e){ signOut(); showBanner(e.message + " Editing has been turned off."); }
+  renderAcct(); render();
+}
+function signOut(){
+  S.token=null; S.login=null; S.canWrite=false;
+  try{ sessionStorage.removeItem("pgmig.tok"); localStorage.removeItem("pgmig.tok"); }catch(e){}
+  renderAcct(); render();
+}
+function renderAcct(){
+  const el = document.getElementById("acct");
+  el.innerHTML = S.canWrite
+    ? `<span class="muted">Editing as <b>@${esc(S.login||"you")}</b></span><button class="btn small" id="signOut" type="button">Sign out</button>`
+    : `<span class="muted">View only</span><button class="btn small primary" id="signIn" type="button">Turn on editing</button>`;
+}
+
+/* ---------- writes ---------- */
+async function setItemState(app, sectionTitle, itemText, next){
+  const num = app.issue.number;
+  // Re-read the issue so concurrent edits by others aren't overwritten.
+  const r = await gh(`/repos/${SLUG}/issues/${num}`, {cache:"no-store"});
+  if(!r.ok) throw new Error(`Couldn't read issue #${num} (GitHub returned ${r.status}).`);
+  const fresh = await r.json();
+  const lines = String(fresh.body||"").split(/\r?\n/);
+  let section = null, hit = -1;
+  for(let i=0;i<lines.length;i++){
+    const h = lines[i].match(/^#{2,4}\s+(.+?)\s*$/);
+    if(h){ section = h[1].trim(); continue; }
+    const m = lines[i].match(ITEM_RE);
+    if(m && (section||"Checklist")===sectionTitle && norm(m[3])===norm(itemText)){ hit = i; break; }
+  }
+  if(hit<0) throw new Error(`That item has been changed on issue #${num} since the page loaded. Refresh and try again.`);
+  const m = lines[hit].match(ITEM_RE);
+  const clean = m[3].replace(/^~~(.+)~~(.*)$/, "$1$2").trim();
+  lines[hit] = m[1] + (next==="done" ? "[x] " : "[ ] ") + (next==="na" ? "~~"+clean+"~~" : clean);
+  const p = await gh(`/repos/${SLUG}/issues/${num}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({body:lines.join("\n")})});
+  if(p.status===403 || p.status===404) throw new Error("Your token can't edit issues in this repository. It needs Issues: Read and write.");
+  if(!p.ok) throw new Error(`Saving to issue #${num} failed (GitHub returned ${p.status}).`);
+  const updated = await p.json();
+  const idx = S.issues.findIndex(i=>i.number===num);
+  if(idx>=0) S.issues[idx] = updated;
+  ingest(S.issues);
+}
+
+/* ---------- rendering ---------- */
+const view = document.getElementById("view");
+function meter(t, label){
+  const d = t.denom ? t.done/t.denom*100 : 0;
+  return `<div class="meter" title="${t.done} done · ${t.na} N/A · ${t.total} total"><div class="bar"><i style="width:${d}%"></i></div><small>${label ?? (t.denom ? t.done+"/"+t.denom : "–")}</small></div>`;
+}
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===S.tab)));
+  if(!S.loaded){ view.innerHTML = `<div class="group empty">Loading issues from GitHub…</div>`; return; }
+  if(S.tab==="overview") view.innerHTML = renderOverview();
+  else if(S.tab==="platform") view.innerHTML = S.platform ? renderChecklist(S.platform, `<h2>Platform baseline</h2><a class="muted" href="${S.platform.issue.html_url}" target="_blank" rel="noopener">#${S.platform.issue.number} ↗</a>`) : emptyState("platform");
+  else if(S.tab==="app") view.innerHTML = renderAppTab();
+  else renderGuide();
+}
+function emptyState(kind){
+  const tpl = kind==="platform" ? "platform-baseline.md" : "app-migration.md";
+  return `<div class="group empty">
+    <b>No ${kind==="platform" ? "platform baseline issue" : "application issues"} yet.</b><br>
+    <ol>
+      <li>List your applications in <a href="${GH}/blob/main/apps.txt" target="_blank" rel="noopener">apps.txt</a>.</li>
+      <li>Run <a href="${GH}/actions/workflows/bootstrap-issues.yml" target="_blank" rel="noopener">Bootstrap migration issues</a> from the Actions tab.</li>
+      <li>Or open one by hand from the <a href="${GH}/issues/new?template=${tpl}" target="_blank" rel="noopener">issue template</a>.</li>
+    </ol>
+  </div>`;
+}
+function renderOverview(){
+  const apps = S.apps;
+  const plat = S.platform ? tally(S.platform.parsed.sections) : {pct:0};
+  const st = apps.map(appStatus);
+  const cut = st.filter(s=>s[0]>=2).length, dec = st.filter(s=>s[0]===3).length, inprog = st.filter(s=>s[0]===1).length;
+
+  let ticks = ""; for(let w=0; w<=WEEKS; w+=4) ticks += `<span style="left:${w/WEEKS*100}%">W${w}</span>`;
+  const avg = list => list.length ? Math.round(list.reduce((s,x)=>s+x,0)/list.length) : 0;
+  const rows = PHASES.map(p=>{
+    let fill = 0, appsHtml = "";
+    if(p.wave){
+      const inWave = apps.filter(a=>a.wave===p.wave);
+      fill = avg(inWave.map(a=>tally(a.parsed.sections).pct));
+      appsHtml = `<div class="g-apps">${inWave.length ? inWave.map(a=>`<button class="chip" data-goto="${a.issue.number}">${esc(a.name)} <i>${tally(a.parsed.sections).pct}%</i></button>`).join("") : `<small class="muted">No apps labelled ${esc(p.wave)}</small>`}</div>`;
+    } else if(p.n==="1") fill = plat.pct;
+    else if(p.n==="0") fill = avg(apps.map(a=>tally(sec(a,"Discovery")).pct));
+    else if(p.n==="6") fill = apps.length ? Math.round(dec/apps.length*100) : 0;
+    return `<div class="g-row">
+      <div class="g-label"><b>Phase ${p.n} · ${esc(p.t)}</b><small>W${p.s}–W${p.e}</small></div>
+      <div class="g-track"><div class="g-bar" style="left:${p.s/WEEKS*100}%;width:${(p.e-p.s)/WEEKS*100}%" title="${esc(p.d)}"><div class="fill" style="width:${fill}%"></div><span>${fill}%</span><span>${esc(p.d)}</span></div></div>
+      ${appsHtml}
+    </div>`;
+  }).join("");
+
+  const body = apps.length ? apps.map((a,i)=>{
+    const [sn, sl] = st[i];
+    return `<tr>
+      <td><button class="name" data-goto="${a.issue.number}">${esc(a.name)}</button> <a class="muted" href="${a.issue.html_url}" target="_blank" rel="noopener" title="Open issue on GitHub">#${a.issue.number}</a></td>
+      <td>${a.wave ? WAVES[a.wave] : '<span class="muted">Unassigned</span>'}</td>
+      <td>${a.lead ? esc(a.lead) : '<span class="muted">–</span>'}</td>
+      <td><span class="pill s${sn}">${sl}</span></td>
+      ${APP_COLS.map(c=>`<td>${meter(tally(sec(a,c)))}</td>`).join("")}
+      <td>${meter(tally(a.parsed.sections), tally(a.parsed.sections).pct+"%")}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="${5+APP_COLS.length}">${emptyState("app")}</td></tr>`;
+
+  return `
+  <div class="stats">
+    <div class="stat"><b>${apps.length}</b><span>Applications in scope</span></div>
+    <div class="stat"><b>${plat.pct}%</b><span>Platform baseline complete</span></div>
+    <div class="stat"><b>${inprog}</b><span>Apps in progress</span></div>
+    <div class="stat"><b>${cut}</b><span>Cut over to Postgres</span></div>
+    <div class="stat"><b>${dec}</b><span>Cloudant decommissioned</span></div>
+  </div>
+  <section class="section">
+    <div class="section-head"><h2>Roadmap</h2><span class="muted" style="font-size:12px">Weeks are indicative, counted from kickoff. Bar fill = checklist completion.</span></div>
+    <div class="gantt"><div class="gantt-inner"><div class="g-scale"><div></div><div class="ticks">${ticks}</div></div>${rows}</div></div>
+  </section>
+  <section class="section">
+    <div class="section-head"><h2>Applications</h2><span class="muted" style="font-size:12px">Wave comes from the issue's <code>wave:*</code> label; lead from its assignee. Change them on GitHub.</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Application</th><th>Wave</th><th>Lead</th><th>Status</th>${APP_COLS.map(c=>`<th>${esc(c)}</th>`).join("")}<th>Overall</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+    <div style="margin-top:12px"><a class="btn" href="${GH}/issues/new?template=app-migration.md" target="_blank" rel="noopener">Add application on GitHub ↗</a></div>
+  </section>`;
+}
+function renderAppTab(){
+  if(!S.apps.length) return emptyState("app");
+  let a = S.apps.find(x=>String(x.issue.number)===String(S.app));
+  if(!a){ a = S.apps[0]; S.app = a.issue.number; }
+  const [sn, sl] = appStatus(a);
+  const left = `<select id="appPick" aria-label="Application">${S.apps.map(x=>`<option value="${x.issue.number}" ${x===a?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+    <span class="pill s${sn}">${sl}</span>
+    <span class="muted">${a.wave ? WAVES[a.wave] : "Unassigned"}${a.lead ? " · Lead: "+esc(a.lead) : ""} · <a href="${a.issue.html_url}" target="_blank" rel="noopener">#${a.issue.number} ↗</a></span>`;
+  return renderChecklist(a, left);
+}
+function renderChecklist(entry, left){
+  const t = tally(entry.parsed.sections);
+  const key = entry.issue.number;
+  const head = `<div class="cl-head">
+    <div class="left">${left}</div>
+    <div class="left">
+      <div style="width:180px">${meter(t, t.pct+"% · "+t.done+"/"+t.denom+" done")}</div>
+      <div class="seg" role="group" aria-label="Filter">
+        <button data-filter="all" aria-pressed="${S.filter==="all"}">All</button>
+        <button data-filter="open" aria-pressed="${S.filter==="open"}">Open only</button>
+      </div>
+    </div>
+  </div>
+  <p class="legend">${S.canWrite ? "Click a status to cycle it: To do → Done → N/A. Changes are saved to the GitHub issue." : "View only. Choose <b>Turn on editing</b> (top right) to tick items here, or tick them on the GitHub issue."} Add evidence and discussion as comments on the issue.</p>`;
+  if(!entry.parsed.sections.length) return head + `<div class="group empty">This issue has no checklist items.</div>`;
+  return head + entry.parsed.sections.map((s, si)=>{
+    const items = s.items.filter(it => S.filter==="all" || it.state==="todo");
+    return `<section class="group">
+      <div class="group-h"><h3>${esc(s.title)}</h3>${meter(tally([s]))}</div>
+      ${items.length ? items.map(it=>{
+        const k = key+"|"+si+"|"+norm(it.text);
+        const busy = S.busy.has(k);
+        return `<div class="item" data-s="${it.state}">
+          <button class="st" data-s="${it.state}" data-issue="${key}" data-sec="${esc(s.title)}" data-text="${esc(it.text)}" data-k="${esc(k)}" ${busy?"data-busy":""} ${S.canWrite&&!busy?"":"disabled"} aria-label="Status: ${LABEL[it.state]}${S.canWrite?". Click to change.":""}">${busy?"Saving…":LABEL[it.state]}</button>
+          <span class="t">${inline(it.text)}</span>
+        </div>`;
+      }).join("") : `<div class="empty" style="padding:14px">All items closed.</div>`}
+    </section>`;
+  }).join("");
+}
+async function renderGuide(){
+  if(S.guideHtml){ view.innerHTML = S.guideHtml; return; }
+  view.innerHTML = `<div class="group empty">Loading guidelines…</div>`;
+  try{
+    const r = await fetch(`https://raw.githubusercontent.com/${SLUG}/main/docs/GUIDELINES.md`, {cache:"no-store"});
+    if(!r.ok) throw new Error();
+    const md = await r.text();
+    const html = window.marked ? window.marked.parse(md) : `<pre>${esc(md)}</pre>`;
+    S.guideHtml = `<article class="doc">${html.replace(/<table>/g,'<div class="tbl"><table>').replace(/<\/table>/g,'</table></div>')}</article>
+      <p class="muted" style="font-size:12px">Source: <a href="${GH}/blob/main/docs/GUIDELINES.md" target="_blank" rel="noopener">docs/GUIDELINES.md</a> · Roadmap detail: <a href="${GH}/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">docs/ROADMAP.md</a></p>`;
+    if(S.tab==="guide") view.innerHTML = S.guideHtml;
+  }catch(e){
+    if(S.tab==="guide") view.innerHTML = `<div class="group empty">Couldn't load the guidelines. <a href="${GH}/blob/main/docs/GUIDELINES.md" target="_blank" rel="noopener">Read them on GitHub ↗</a></div>`;
+  }
+}
+
+function setSync(kind, text){ document.getElementById("syncDot").className = "dot " + kind; document.getElementById("syncText").textContent = text; }
+function showBanner(msg){ const b=document.getElementById("banner"); b.textContent=msg; b.hidden=false; }
+function hideBanner(){ document.getElementById("banner").hidden=true; }
+
+/* ---------- events ---------- */
+document.getElementById("tabs").addEventListener("click", e=>{
+  const b = e.target.closest("button[data-tab]"); if(!b) return;
+  S.tab = b.dataset.tab; saveUi(); render();
+});
+document.getElementById("refreshBtn").addEventListener("click", ()=>{ setSync("", "Refreshing…"); load(true); });
+view.addEventListener("click", async e=>{
+  const go = e.target.closest("[data-goto]");
+  if(go){ S.app = go.dataset.goto; S.tab = "app"; saveUi(); render(); window.scrollTo({top:0}); return; }
+  const f = e.target.closest("[data-filter]");
+  if(f){ S.filter = f.dataset.filter; saveUi(); render(); return; }
+  const st = e.target.closest("button.st");
+  if(st && S.canWrite && !st.hasAttribute("data-busy")){
+    const num = Number(st.dataset.issue);
+    const entry = S.platform && S.platform.issue.number===num ? S.platform : S.apps.find(a=>a.issue.number===num);
+    if(!entry) return;
+    const next = STATES[(STATES.indexOf(st.dataset.s)+1) % STATES.length];
+    const k = st.dataset.k;
+    S.busy.add(k); render();
+    try{ await setItemState(entry, st.dataset.sec, st.dataset.text, next); hideBanner(); }
+    catch(err){ showBanner(err.message); }
+    finally{ S.busy.delete(k); render(); }
+  }
+});
+view.addEventListener("change", e=>{
+  if(e.target.id==="appPick"){ S.app = e.target.value; saveUi(); render(); }
+});
+
+const dlg = document.getElementById("tokenDlg");
+document.getElementById("acct").addEventListener("click", e=>{
+  if(e.target.id==="signOut") signOut();
+  if(e.target.id==="signIn"){
+    document.getElementById("tokenErr").textContent = "";
+    document.getElementById("tokenInput").value = "";
+    if(dlg.showModal) dlg.showModal(); else dlg.setAttribute("open","");
+    document.getElementById("tokenInput").focus();
+  }
+});
+async function saveToken(){
+  const tok = document.getElementById("tokenInput").value.trim();
+  const errEl = document.getElementById("tokenErr");
+  if(!tok){ errEl.textContent = "Paste a token first."; return; }
+  errEl.textContent = "Checking…";
+  try{
+    const {login} = await verifyToken(tok);
+    S.token = tok; S.login = login; S.canWrite = true;
+    try{
+      sessionStorage.setItem("pgmig.tok", tok);
+      if(document.getElementById("rememberTok").checked) localStorage.setItem("pgmig.tok", tok);
+    }catch(e){}
+    dlg.close ? dlg.close() : dlg.removeAttribute("open");
+    renderAcct(); render(); load(true);
+  }catch(err){ errEl.textContent = err.message; }
+}
+document.getElementById("tokenSave").addEventListener("click", saveToken);
+document.getElementById("tokenInput").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); saveToken(); } });
+
+/* ---------- boot ---------- */
+const repoLink = document.getElementById("repoLink");
+repoLink.href = GH + "/issues"; repoLink.textContent = SLUG;
+document.getElementById("dlgRepo").textContent = SLUG;
+renderAcct(); render();
+initAuth().then(()=>load(true));
+setInterval(()=>{ if(document.visibilityState==="visible") load(false); }, POLL_MS);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") load(false); });
+})();
+</script>
+</body>
+</html>
