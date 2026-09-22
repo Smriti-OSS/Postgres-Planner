@@ -1,0 +1,17 @@
+# Applications to migrate. One per line:  name | wave | lead
+#
+#   wave: pilot, w1, w2, w3, or tbd (tbd = no milestone yet)
+#   lead: optional. Write @github-username to also assign the issue.
+#
+# Replace the placeholders below with your real applications, then run the bootstrap.
+# Changing a line after its issue exists does not update the issue; edit the issue directly.
+
+Metering - rated_usage | pilot |
+Application 2          | w1    |
+Application 3          | w1    |
+Application 4          | w1    |
+Application 5          | w2    |
+Application 6          | w2    |
+Application 7          | w2    |
+Application 8          | w3    |
+Application 9          | w3    |

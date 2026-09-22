@@ -1,0 +1,25 @@
+name: Bootstrap migration issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only (create nothing)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create labels, milestones and issues
+        run: bash scripts/bootstrap-issues.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
