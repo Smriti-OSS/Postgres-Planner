@@ -6,7 +6,7 @@
 # Replace the placeholders below with your real applications, then run the bootstrap.
 # Changing a line after its issue exists does not update the issue; edit the issue directly.
 
-Metering - rated_usage | pilot |
+Application 1 | pilot |
 Application 2          | w1    |
 Application 3          | w1    |
 Application 4          | w1    |
